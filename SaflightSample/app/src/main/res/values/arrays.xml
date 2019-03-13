@@ -1,0 +1,36 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string-array name="times">
+        <item></item>
+        <item>1次</item>
+        <item>2次</item>
+        <item>3次</item>
+        <item>4次</item>
+        <item>5次</item>
+        <item>6次</item>
+        <item>7次</item>
+        <item>8次</item>
+        <item>9次</item>
+        <item>10次</item>
+        <item>11次</item>
+        <item>12次</item>
+        <item>13次</item>
+        <item>14次</item>
+        <item>15次</item>
+        <item>16次</item>
+        <item>17次</item>
+        <item>18次</item>
+        <item>19次</item>
+        <item>20次</item>
+        <item>21次</item>
+        <item>22次</item>
+        <item>23次</item>
+        <item>24次</item>
+        <item>25次</item>
+        <item>26次</item>
+        <item>27次</item>
+        <item>28次</item>
+        <item>29次</item>
+        <item>30次</item>
+    </string-array>
+</resources>
