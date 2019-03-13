@@ -1,0 +1,214 @@
+using System;
+using System.Collections.Generic;
+using System.Linq;
+using System.Text;
+using System.Threading.Tasks;
+using System.Net;
+using System.IO;
+using System.Web.Script.Serialization;
+using System.Collections;
+using Newtonsoft.Json.Linq;
+using Microsoft.Office.Interop.Excel;
+using System.Reflection;
+
+namespace test1
+{
+    class Program
+    {
+        private Microsoft.Office.Interop.Excel.Application excelApplication = null;
+        private Microsoft.Office.Interop.Excel.Workbooks excelWorkBooks = null;
+        private Microsoft.Office.Interop.Excel.Workbook excelWorkBook = null;
+        private Microsoft.Office.Interop.Excel.Worksheet excelWorkSheet = null;
+        private Microsoft.Office.Interop.Excel.Range excelRange = null;
+        private int excelActiveWorkSheetIndex=1;   //活动工作表索引
+
+        //登陆获取access_token
+        public string get_access_token()
+        {
+            HttpWebRequest httpWebRequest = (HttpWebRequest)WebRequest.Create(@"https://developer-api.openbom.com/login");
+
+            httpWebRequest.ContentType = "application/json";
+            httpWebRequest.Method = "POST";
+            //httpWebRequest.Timeout = 20000;
+            httpWebRequest.Headers.Add("x-openbom-appkey", "5b1ebadb40e9b0d91d489a29");
+
+            string postData = "{"+string.Format("username:{0},password:{1}", "sli@mdbarnmaster.com", "Ncu861636")+"}";
+            byte[] btBodys = Encoding.UTF8.GetBytes(postData);
+            httpWebRequest.ContentLength = btBodys.Length;
+            httpWebRequest.GetRequestStream().Write(btBodys, 0, btBodys.Length);
+
+
+            HttpWebResponse httpWebResponse = (HttpWebResponse)httpWebRequest.GetResponse();
+            StreamReader streamReader = new StreamReader(httpWebResponse.GetResponseStream());
+            string responseContent = streamReader.ReadToEnd();
+
+            JObject obj = JObject.Parse(responseContent);
+            string access_token = obj["access_token"].ToString();
+           
+            httpWebResponse.Close();
+            streamReader.Close();
+            httpWebRequest.Abort();
+            httpWebResponse.Close();
+
+            return access_token;
+        }
+
+        //获取所有boms
+        public void  get_all_boms(ArrayList bomIds,string access_token)
+        {
+            HttpWebRequest httpWebRequest = (HttpWebRequest)WebRequest.Create(@"https://developer-api.openbom.com/boms");
+
+            httpWebRequest.ContentType = "application/json";
+            httpWebRequest.Method = "GET";
+            //httpWebRequest.Timeout = 20000;
+            httpWebRequest.Headers.Add("x-openbom-appkey", "5b1ebadb40e9b0d91d489a29");
+            httpWebRequest.Headers.Add("x-openbom-accesstoken", access_token);
+          
+            HttpWebResponse httpWebResponse = (HttpWebResponse)httpWebRequest.GetResponse();
+            StreamReader streamReader = new StreamReader(httpWebResponse.GetResponseStream());
+            string responseContent = streamReader.ReadToEnd();
+
+            //JObject obj = JObject.Parse(responseContent);
+            JArray boms = JArray.Parse(responseContent);
+            Console.WriteLine(boms.Count());
+            for (int i = 0; i < boms.Count(); i++)
+            {
+                bomIds.Add(boms[i]["bomId"].ToString());
+            }
+
+            httpWebResponse.Close();
+            streamReader.Close();
+            httpWebRequest.Abort();
+            httpWebResponse.Close();
+        }
+
+        //获取每一个bom所需要的数据
+        public void get_bom_details(ArrayList bomIds, string access_token,string fileName)
+        {
+
+            string addr = "https://developer-api.openbom.com/bom/" + bomIds[0];
+            HttpWebRequest httpWebRequest = (HttpWebRequest)WebRequest.Create(@addr);
+
+            httpWebRequest.ContentType = "application/json";
+            httpWebRequest.Method = "GET";
+            //httpWebRequest.Timeout = 20000;
+            httpWebRequest.Headers.Add("x-openbom-appkey", "5b1ebadb40e9b0d91d489a29");
+            httpWebRequest.Headers.Add("x-openbom-accesstoken", access_token);
+
+            HttpWebResponse httpWebResponse = (HttpWebResponse)httpWebRequest.GetResponse();
+            StreamReader streamReader = new StreamReader(httpWebResponse.GetResponseStream());
+            string responseContent = streamReader.ReadToEnd();
+
+             JObject obj = JObject.Parse(responseContent);
+            //JArray boms = JArray.Parse(responseContent);
+            //在此处获取值并写到excel中
+            setOneCellValue(1,1,obj["partNumber"].ToString());
+            
+
+            httpWebResponse.Close();
+            streamReader.Close();
+            httpWebRequest.Abort();
+            httpWebResponse.Close();
+        }
+
+        //打开excel
+        public bool OpenExcelFile(string excelOpenFileName)
+        {
+            try
+            {
+                excelApplication = new Microsoft.Office.Interop.Excel.Application();
+                excelWorkBooks = excelApplication.Workbooks;
+                excelWorkBook = ((Microsoft.Office.Interop.Excel.Workbook)excelWorkBooks.Open(excelOpenFileName, Missing.Value, false, Missing.Value, Missing.Value, Missing.Value, Missing.Value, Missing.Value, Missing.Value, Missing.Value, Missing.Value, Missing.Value, Missing.Value, Missing.Value, Missing.Value));
+                excelWorkSheet = (Microsoft.Office.Interop.Excel.Worksheet)excelWorkBook.Worksheets[excelActiveWorkSheetIndex];
+                excelApplication.Visible = false;
+
+                return true;
+            }
+            catch (Exception e)
+            {
+                CloseExcelApplication();
+                return false;
+            }
+        }
+        //关闭excel
+        public void CloseExcelApplication()
+        {
+            try
+            {
+                excelWorkBooks = null;
+                excelWorkBook = null;
+                excelWorkSheet = null; 
+                if (excelApplication != null)
+                {
+                    excelApplication.Workbooks.Close();
+                    //Object missing = Type.Missing;
+                    excelApplication.Quit();
+                    excelApplication = null;
+                    //ReleaseAllRef(excelApplication);//Error
+
+                }
+            }
+            finally
+            {
+                GC.Collect();
+                GC.WaitForPendingFinalizers();
+                GC.Collect();
+                GC.WaitForPendingFinalizers();
+            }
+        }
+
+        public void setOneCellValue(int CellRowID, int CellColumnID, string Value)
+        {
+            try
+            {
+                excelRange = (Microsoft.Office.Interop.Excel.Range)excelWorkSheet.Cells[CellRowID, CellColumnID];
+                excelRange.Value2 = Value;//Value2?
+                //Gets or sets the value of the NamedRange control. 
+                //The only difference between this property and the Value property is that Value2 is not a parameterized property. 
+                excelRange = null;
+            }
+            catch (Exception e)
+            {
+                CloseExcelApplication();
+                //throw new Exception(e.Message);
+            }
+        }
+        public void SaveExcel(string fileName)
+        {
+           
+            try
+            {
+                excelWorkSheet.SaveAs(fileName, Missing.Value, Missing.Value, Missing.Value, Missing.Value, Missing.Value, Microsoft.Office.Interop.Excel.XlSaveAsAccessMode.xlNoChange, Missing.Value, Missing.Value, Missing.Value);
+            }
+            catch (Exception e)
+            {
+                CloseExcelApplication();
+                //throw new Exception(e.Message);
+            }
+        }
+
+
+
+        static void Main(string[] args)
+        {
+
+            Program p1 = new Program();
+            //记录boomid集合
+            ArrayList bomIds = new ArrayList();
+            //excel文件地址 此处是相对路径
+            string fileAddress = "test.xlsx";
+            String access_token;
+            //获取access_token
+            access_token = p1.get_access_token();
+            p1.get_all_boms(bomIds, access_token);
+            //打开文件
+            Console.WriteLine(p1.OpenExcelFile(fileAddress));
+            //在此处方法内进行修改，获取所需值
+            p1.get_bom_details(bomIds, access_token, fileAddress);
+            //保存excel
+            p1.SaveExcel(fileAddress);
+            //释放空间
+            p1.CloseExcelApplication();
+        }
+    }
+}
